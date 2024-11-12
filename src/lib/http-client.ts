@@ -1,3 +1,5 @@
+import { log } from "console";
+
 // Types and interfaces
 interface HttpClientConfig {
   retries?: number;
@@ -10,6 +12,8 @@ interface RequestConfig extends RequestInit {
   headers?: Record<string, string>;
   timeout?: number;
   signal?: AbortSignal;
+  retries?: number;
+  retryDelay?: number;
 }
 
 interface HttpResponse<T = unknown> {
@@ -48,7 +52,7 @@ class HttpClient {
   constructor(baseURL: string = "", config: HttpClientConfig = {}) {
     this.baseURL = baseURL;
     this.config = {
-      retries: 3,
+      retries: 1,
       retryDelay: 1000,
       timeout: 10000,
       headers: {},
@@ -108,7 +112,6 @@ class HttpClient {
   }
 
   private createRequestConfig(
-    url: string,
     method: HttpMethod,
     data?: unknown,
     customConfig: Partial<RequestConfig> = {}
@@ -141,11 +144,13 @@ class HttpClient {
     url: string,
     config: RequestConfig
   ): Promise<Response> {
+    const retries = config.retries ?? this.config.retries;
+    const retryDelay = config.retryDelay ?? this.config.retryDelay;
     let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt < this.config.retries; attempt++) {
+    for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const response = await fetch(url, config);
+        log("response");
         if (!response.ok) {
           throw new HttpError(
             `HTTP error! status: ${response.status}`,
@@ -155,9 +160,9 @@ class HttpClient {
         return response;
       } catch (error) {
         lastError = error as Error;
-        if (attempt < this.config.retries - 1) {
+        if (attempt < retries - 1) {
           await new Promise((resolve) =>
-            setTimeout(resolve, this.config.retryDelay * Math.pow(2, attempt))
+            setTimeout(resolve, retryDelay * Math.pow(2, attempt))
           );
         }
       }
@@ -185,7 +190,7 @@ class HttpClient {
     customConfig: Partial<RequestConfig> = {}
   ): Promise<HttpResponse<T>> {
     const fullUrl = `${this.baseURL}${url}`;
-    let config = this.createRequestConfig(fullUrl, method, data, customConfig);
+    let config = this.createRequestConfig(method, data, customConfig);
 
     config = await this.applyRequestInterceptors(config);
 

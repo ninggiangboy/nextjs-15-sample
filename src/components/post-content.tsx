@@ -1,4 +1,4 @@
-import { getPost } from "@/lib/data";
+import { getPost } from "@/lib/api/posts";
 
 export default async function PostContent({ id }: { id: number }) {
   const post = await getPost(id);

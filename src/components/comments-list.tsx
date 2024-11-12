@@ -1,4 +1,4 @@
-import { getComments } from "@/lib/data";
+import { getComments } from "@/lib/api/comments";
 
 export default async function CommentsList({ id }: { id: number }) {
   const comments = await getComments(id);
